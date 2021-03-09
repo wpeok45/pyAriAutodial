@@ -1,0 +1,49 @@
+
+<script type="text/javascript" charset="utf-8">
+// создать подключение
+var socket = new WebSocket("ws://mydomain.eu:3766/ari/events?app=fromWeb&subscribeAll=true&api_key=servApiTester:xxxxxxxx");
+//var socket = new WebSocket("ws://mydomain.eu:3766/ari/events?app=fromWeb&api_key=servApiTester:xxxxxxxx");
+
+// отправить сообщение из формы publish
+function sendMSG() {
+	var txt = document.getElementById("msg").value;
+	socket.send(txt);
+	return false;
+};
+
+// обработчик входящих сообщений
+socket.onmessage = function(event) {
+  var incomingMessage = event.data;
+  showMessage(incomingMessage);
+};
+
+// показать сообщение в div#subscribe
+function showMessage(message) {
+  var messageElem = document.createElement('div');
+  messageElem.appendChild(document.createTextNode(message));
+  document.getElementById('subscribe').appendChild(messageElem);
+}
+
+window.onload = function() {
+		;;
+	}
+
+// http://23.23.23.23:3766/ari/events?app=%s&subscribeAll=false&api_key=servApiTester:xxxxxxx
+// http://23.23.23.23:3766/ari/applications/fromWeb/subscription?eventSource=deviceState:__AST_DEVICE_STATE_ALL_TOPIC
+// http://23.23.23.23:3766/ari/applications/fromWeb/subscription?eventSource=bridge:__AST_BRIDGE_ALL_TOPIC
+// http://23.23.23.23:3766/ari/applications/fromWeb/subscription?eventSource=channel:__AST_CHANNEL_ALL_TOPIC
+// http://23.23.23.23:3766/ari/applications/fromWeb/subscription?eventSource=endpoint:__AST_ENDPOINT_ALL_TOPIC
+
+</script>
+
+<a href="http://23.23.23.23:3766/ari/applications/fromWeb/subscription?eventSource=deviceState:__AST_DEVICE_STATE_ALL_TOPIC" >__AST_DEVICE_STATE_ALL_TOPIC</a></div>
+
+<button type="button" id=btnCampainID value="0" onclick="sendMSG()">Send</button>
+<input type="text" name="message" id="msg" size="99">
+
+
+<!-- здесь будут появляться входящие сообщения -->
+<div id="subscribe"></div>
+
+
+

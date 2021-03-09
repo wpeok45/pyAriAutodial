@@ -1,0 +1,343 @@
+<html lang="ru-RU">
+<body>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.1.1/socket.io.js"></script>
+<script type="text/javascript" charset="utf-8">
+
+	
+	var SelectedCID=''; 
+	var bEndpointUp = false;
+	var bCampainUp = false;
+	var strEndpoint='';
+	var PinCode = getRandomInt(100,999).toString(); 
+	var socket = io.connect('https://mydomain.eu:5581', {secure: true});
+
+	var numbersList='';
+	var numbersListCNTR=0;
+	var numbersListComplete = false;
+	var bServerReady=false;
+	var strOutboundChannel='';
+	var strMyEndpointChannel='';
+	
+	socket.on('connect', function() {
+		//socket.emit('my event', {data: 'I\'m connected!'});
+		document.getElementById('myEndpointStateID').innerHTML ="Your phone number:";
+		document.getElementById("btnMyEndpointUpID").disabled = false;
+		bServerReady=true;
+	});
+	socket.on('disconnect', function () {
+		document.getElementById('btnMyEndpointUpID').innerHTML ="Go online";
+		document.getElementById('myEndpointStateID').innerHTML ="Server is down";
+		document.getElementById("btnMyEndpointUpID").disabled = true;
+		document.getElementById("btnCampainID").disabled = true;
+		document.getElementById("btnHangupClientID").disabled = true;
+				
+		bServerReady=false;
+    	bEndpointUp=false;
+	});
+	socket.on('alertMSG', function(msg) {
+		alert(msg)
+	});
+	socket.on('endpointUP_error', function(msg) {
+		console.log(msg);
+	});
+	// Incoming event(broadcasted to all connected clients)
+	socket.on('StasisStart', function(msg) {
+		console.log('Incoming call: ', msg.channel.dialplan.context ,msg.channel.caller.number,'to', msg.channel.dialplan.exten);
+
+	});
+	
+	////////////////////////////////////////////////
+	//	Asterisk RestAPI json type events 		https://wiki.asterisk.org/wiki/display/AST/Asterisk+14+REST+Data+Models
+	///////////////////////////////////////////////
+	
+	socket.on('ChannelDtmfReceived', function(msg) {
+		console.log(msg);
+	});
+	socket.on('ChannelDestroyed', function(msg) { // cause codes: like '486 Busy here'   https://tools.ietf.org/html/rfc3398#page-24
+		console.log(msg);
+		// Operator channel
+		if (msg.channel.id==strMyEndpointChannel){
+				document.getElementById('myEndpointStateID').innerHTML = msg.cause_txt;
+				document.getElementById('btnMyEndpointUpID').innerHTML ="Go online";
+				document.getElementById("btnCampainID").disabled = true;
+				document.getElementById("btnHangupClientID").disabled = true;
+				document.getElementById("btnMusicOffOnID").disabled = true;
+				
+    			bEndpointUp=false;
+			}
+		// Outbound channel
+		if (msg.channel.id.startsWith(strOutboundChannel)){
+			document.getElementById("btnHangupClientID").disabled = true;
+			var phoneNumber = msg.channel.id.substring(strOutboundChannel.length);
+			ChangeTable('tblStateID', false, phoneNumber, msg.cause_txt);
+				
+			numbersListCNTR++;
+			console.log('next number:');
+			console.log(numbersListCNTR, numbersList[numbersListCNTR]);
+			if (!bCampainUp) return; 							// campain stoped
+				
+			if(numbersList.length == numbersListCNTR){
+				numbersListCNTR = 0;
+				numbersListComplete = true;
+				CampainUpDown();
+				return
+			}
+			CallToClient(numbersList[numbersListCNTR])	//	call next number
+		}
+	});
+	socket.on('ChannelStateChange', function(msg) {
+		console.log(msg);
+		console.log(msg.channel.id);
+		console.log(strMyEndpointChannel);
+		//	Endpoint channel events
+		if (msg.channel.id==strMyEndpointChannel){ // 44444.200
+				document.getElementById('myEndpointStateID').innerHTML = msg.channel.state;
+				//if (msg.channel.state=='Up') bEndpointUp=true;
+				document.getElementById("btnCampainID").disabled = false;
+				document.getElementById("btnMusicOffOnID").disabled = false;
+			}
+		// Outbound channel events
+		if (msg.channel.id.startsWith(strOutboundChannel)){	// where 55555.200.37128215123 is stamp.strEndpoint.outbound number
+			let phoneNumber = msg.channel.id.substring(strOutboundChannel.length);
+			ChangeTable('tblStateID', false, phoneNumber, msg.channel.state);
+			
+			
+			document.getElementById("btnHangupClientID").disabled = false;
+		}
+	});
+
+	
+	function HangupClient(){
+		socket.emit('hangupClient', strEndpoint);
+	}
+	function GetNumbers() {
+		var nums = document.getElementById('numbers').value;
+		var arr = nums.split("\n");
+		var clearArr =[];
+		for (i = 0, len = arr.length; i < len; i++) { 
+			var str = arr[i].replace(/\D/g,''); // remove non numeric characters
+			if (str.length > 4) clearArr.push(str);
+		}
+		clearArr = RemoveDuplicates(clearArr);
+		return clearArr;
+	}
+	function RemoveDuplicates(arr){
+		let unique_array = []
+		for(let i = 0;i < arr.length; i++){
+			if(unique_array.indexOf(arr[i]) == -1){
+            unique_array.push(arr[i])
+			}
+		}
+    return unique_array
+	}
+	function getRandomInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+	}
+	function ChangeTable(editTable, bAppend = false, c0, c1) {
+		
+			var table = document.getElementById(editTable);
+		   var rowCount = table.rows.length;
+		   if (!bAppend) {
+		   	//for (var i = 0; i < table.rows.length; i++) {
+		   	for (var i = 0, n = table.rows.length; i < n; i++){// detect length change in every loop
+		   		var cells = table.rows[i].cells;
+         		if (cells[0].innerHTML==c0)  cells[1].innerHTML=c1;
+         	}
+         	return;
+    		}
+    		// append
+    		var row = table.insertRow(-1);
+    		var cell0 = row.insertCell(0);
+    		var cell1 = row.insertCell(1);
+    		
+    		cell0.innerHTML = c0;
+    		cell1.innerHTML = c1;
+	}
+	function DeleteTableRow(editTable, c0='-1') {
+    	var table = document.getElementById(editTable);
+    	var n=-1;
+    		
+    	for (var i = 0; i < table.rows.length; i++){
+		   var cells = table.rows[i].cells;
+         if ((cells[0].innerHTML==c0) ||(c0=='-1')) {
+         	table.deleteRow(i);
+         	i=-1; // start loop again
+         	}
+         }
+		}
+	function MyEndpointUpDown() {
+		if (!bServerReady) return;
+		if (bEndpointUp){
+			socket.emit('endpointDown', strEndpoint);
+    		document.getElementById('btnMyEndpointUpID').innerHTML ="Go online";
+    		bEndpointUp=false;
+    		bCampainUp = false;
+			document.getElementById('btnCampainID').innerHTML ="Resume campain";
+    		return;
+		}
+		strEndpoint = document.getElementById("myEndpointID").value;
+
+		if (strEndpoint.length < 3) {
+			alert("Your number is too short.");
+			return;
+		}
+		strOutboundChannel='55555.'+strEndpoint+'.';
+		strMyEndpointChannel='44444.'+strEndpoint;
+		
+		if (strEndpoint.length > 4) trunk='SIP/twilioRiga/+'; // for external endpoints we call through trunk
+		else trunk='SIP/'; 												// XXX local endpoint
+		let callerId='37112345678';
+		socket.emit('endpointUP', strEndpoint, trunk, callerId, PinCode);
+    	document.getElementById('btnMyEndpointUpID').innerHTML ="STOP";
+    	bEndpointUp=true;
+
+	}
+	function CampainUpDown() {
+		if (!bServerReady) return;
+		if (bCampainUp){
+			bCampainUp = false;
+			if (numbersListCNTR==0) document.getElementById('btnCampainID').innerHTML ="Start campain";
+			else document.getElementById('btnCampainID').innerHTML ="Resume campain";
+			document.getElementById("btnHangupClientID").disabled = true
+			socket.emit('hangupClient', strEndpoint);
+			return;
+		}
+		
+		document.getElementById('btnCampainID').innerHTML ="Stop campain";
+		numbersList = GetNumbers();
+		if (numbersList.length<1) {
+			alert("Please fill the phone list.");
+			return;
+		}
+		
+		if (numbersListCNTR==0){ //this is an new campain, so clear state table
+			DeleteTableRow('tblStateID','-1');
+			for (i = 0, len = numbersList.length; i < len; i++)  ChangeTable('tblStateID', true, numbersList[i],'');
+		}
+		CallToClient(numbersList[numbersListCNTR])
+		bCampainUp = true;
+
+	}
+	function CallToClient(number) {
+
+		let elem = document.getElementById("selectCIDid");
+		let numArr=[];
+		for (var i = 0; i < elem.length; i++){
+  			numArr.push(elem.options[i].text);
+		}
+		
+		var callerId;
+		// hardcoded unusual trunk 37187654321
+		if (!SelectedCID.startsWith('37187654321')) callerId = AutoCallerId(number, numArr); 										// change our CID(AOH) number by client country code
+		if (callerId==undefined) callerId = SelectedCID; 									// if not - get selected by user
+		ChangeSelectedIndex(callerId);															// and view it
+		
+		let signalBeepOnRecording = false;
+		let trunk = 'SIP/twilioRiga/+';
+		// hardcoded unusual trunk 37187654321
+		if (callerId.startsWith('37187654321')) trunk ='SIP/goip-8/18+';	
+		console.log('calltoclient', strEndpoint, number, trunk, callerId, signalBeepOnRecording);													
+		socket.emit('calltoclient', strEndpoint, number, trunk, callerId, signalBeepOnRecording);
+	}
+	function StopStartMusic() {
+		socket.emit('MOH', strEndpoint);
+	}
+	function AutoCallerId(number, cidList) {
+		for (i = 0, len = cidList.length; i < len; i++) {
+			if (number.startsWith(cidList[i].substring(0,3))) return cidList[i]; // 370,371,372,XXX.......
+		}
+		for (i = 0, len = cidList.length; i < len; i++) {
+			if (number.startsWith(cidList[i].substring(0,2))) return cidList[i]; // 49,45,XX.......
+		}
+	}
+	function ChangeSelectedIndex(txt) {
+		let e = document.getElementById("selectCIDid");
+		for (var i = 0; i < e.length; i++){
+			if(e.options[i].text == txt ){
+				e.selectedIndex = i;
+  				return;
+  			}
+		}
+	}
+	function onSelectOption() {
+		SelectedCID = document.getElementById("selectCIDid").options[document.getElementById("selectCIDid").selectedIndex].text
+	}
+	window.onload = function() {
+		document.getElementById('PinCodeID').innerHTML = PinCode;
+		onSelectOption()
+	}
+</script>
+
+
+
+Auto dialing<hr>
+<p>
+
+<table>
+<tr>
+	<td><span id=myEndpointStateID>Server is down</span></td>
+	<td>PIN: <span id=PinCodeID>456</span></td>
+	<td></td>
+	<td></td>
+</tr>
+<tr>
+	<td><input type="number" id=myEndpointID  placeholder="Your number" ></td>
+	<td><button type="button" id=btnMyEndpointUpID value="0" onclick="MyEndpointUpDown()" disabled>Go online</button></td>
+	<td> _____ </td>
+	<td><button type="button" id=btnCampainID value="0" onclick="CampainUpDown()" disabled>Start campain</button></td>
+	<td> _____ </td>
+	<td><button type="button" id=btnHangupClientID value="0" onclick="HangupClient()" disabled>Hangup client</button></td>
+	<td> _____ </td>
+	<td><button type="button" id=btnMusicOffOnID value="0" onclick="StopStartMusic()" disabled>Music off-on</button></td>
+	<td> _____ </td>
+	<td> 
+			<div>Your outbound number</div> 
+			<select id="selectCIDid" onclick="onSelectOption()">
+      		<option value="1" selected="selected">37187654321</option>
+      		<option value="2">4912345678999</option>
+      		<option value="3">3721234567</option>
+      		<option value="4">33123456789</option>
+      		<option value="5">34123456789</option>
+      		<option value="6">44123456789</option>
+      		<option value="7">37012345678</option>
+      		<option value="8">37112345678</option>
+      		
+   		</select>
+	</td>
+	
+	<td></td>
+	<td></td>
+</tr>
+</table>
+
+<table>
+	<tr>
+	    	<th id=allNumsID>Numbers</th>
+	    	<th id=dialStateID>Dial status </th>
+	</tr>
+	<tr>
+		<td headers="allNumsID">
+			<textarea style="resize:none" id=numbers cols="35" rows="30" ></textarea>
+		</td>
+		
+		
+		<td id=dialStateTD  headers="dialState" valign="top">
+			<!-- Dynamic table-->
+			<table id = tblStateID >
+			</table>
+		</td> 
+		<td>
+			<button style="display: none" type="button" id=btnHang disabled >Hangup</button>'
+		</td>
+	</tr>
+	
+</table>
+
+</body>
+</html>
+<!-- -->
+
+
+
+

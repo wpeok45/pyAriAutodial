@@ -1,0 +1,15 @@
+
+Very simple concept of "Stasis" autodial application.
+For testing purpose.
+
+Backend:
+	Asterisk 14, dialplan function "Stasis()"
+	python: "flask_socketio"
+	mysql
+
+Frontend:
+	HTML
+	"socket.io.js"
+_______
+testeted on live CallCenter with 1-3 operators
+Aproximaly 2 month everyday.

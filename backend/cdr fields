@@ -1,0 +1,75 @@
+1	id                      	<autoindex>
+2	calldate datetime		<datetime>
+3	clid				"comment" <real phone number>	
+4	src				<from phone number>	
+5	dst				<to phone number>	
+6	dcontext			<asterisk dialplan context>			
+7	channel				<"src" channel id>		
+8	dstchannel			<55555.<"src">.<"dst">>		
+9	lastapp				<application function>		
+10	lastdata			<data sended by application in to asterisk>			
+11	duration			<number of seconds "src" "channel" up time >
+12	billsec			        <number of seconds "src" "channel" and  "dst" dstchannel in one bridge >
+13	start				<datetime "src" "channel" when started	>				
+14	answer				<datetime when "src" "channel" and  "dst" dstchannel connected in to one bridge>						
+15	end				<datetime when bridge destroyed>
+16	disposition			<hangup cause code>			
+17	disposition_ext	text		<hangup cause code extended (https://wiki.asterisk.org/wiki/display/AST/Hangup+Cause+Mappings)>	
+18	amaflags			<>
+19	accountcode			<local sip account of "src" "channel" >
+20	userfield			<keycloak_admin.get_users(attribute=sip, filter=lastTime) >			
+21	userid				<keycloak_admin.get_users(attribute=sip, filter=lastTime) >				
+22	uniqueid			<unique action id, taken form time value>		
+23	peeraccount			<local sip account of "dst" "channel" >			
+24	linkedid			<deprecated>			
+25	sequence			<number of action at application start or restart>
+26	recURL				<>	
+27	provider			<>			
+28	price				<>
+
+
+
+
+
+SELECT
+  *
+FROM
+  `cdr`
+WHERE
+  `userfield` = 'anna_nl' AND(
+    `calldate` BETWEEN '2019-05-14 06:59:01' AND '2019-05-14 23:59:00' and billsec > 30
+  )
+ORDER BY
+  `cdr`.`calldate` DESC
+
+
+
+SELECT
+  COUNT(id)
+FROM
+  `cdr`
+WHERE
+  `userfield` = 'anna_nl' AND DATE(calldate) = DATE(CURDATE()) AND dcontext = 'from-zd-lv'
+
+  
+
+
+update cdr set `userid` = 
+replace(`userid`,'39b9e23d-2a23-402d-94cf-f0ee3c5f6d26','cd408b5e-0798-472d-81af-36e2089b2d0c')
+WHERE
+  `userfield`='oskars.pavlovskis' AND(
+    `calldate` BETWEEN '2019-05-12 06:59:01' AND '2019-05-12 16:59:44'
+  )
+
+
+
+update cdr set `userfield` = 
+replace(`userfield`,'oskars.pavlovskis','dmitrij_k')
+WHERE
+  `userfield`='oskars.pavlovskis' AND(
+    `calldate` BETWEEN '2019-05-12 06:59:01' AND '2019-05-12 16:59:44'
+  )
+
+
+
+
