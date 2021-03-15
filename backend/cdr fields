@@ -57,14 +57,14 @@ WHERE
 update cdr set `userid` = 
 replace(`userid`,'39b9e23d-2a23-402d-94cf-f0ee3c5f6d26','cd408b5e-0798-472d-81af-36e2089b2d0c')
 WHERE
-  `userfield`='oskars.pavlovskis' AND(
+  `userfield`='oskars' AND(
     `calldate` BETWEEN '2019-05-12 06:59:01' AND '2019-05-12 16:59:44'
   )
 
 
 
 update cdr set `userfield` = 
-replace(`userfield`,'oskars.pavlovskis','dmitrij_k')
+replace(`userfield`,'oskars','dmitrij_k')
 WHERE
   `userfield`='oskars.pavlovskis' AND(
     `calldate` BETWEEN '2019-05-12 06:59:01' AND '2019-05-12 16:59:44'
